@@ -6,19 +6,14 @@ public class Event implements Comparable<Event> {
 	private Vehicle v; // vehicle 
 	private double time;
 	public Event(int type, int VID, double time) {
-		if(time-Math.ceil(time)<0.0001) {
-			time=Math.ceil(time);
-		}
-		
-		
+		setTime(time);
 		this.type=type;
 		this.VID=VID;
-		this.time=time;
 	}
 	public Event(int type, Vehicle v, double time) {
 		this.type=type;
 		this.v=v;
-		this.time=time;
+		setTime(time);
 	}
 	public int getType() {
 		return type;
@@ -33,11 +28,14 @@ public class Event implements Comparable<Event> {
 	public double getTime() {
 		return time;
 	}
-	public void setTime(double time) {
-		if(time-Math.ceil(time)<0.0001) { //round to prevent repeated rotation error 13.999999999999
-			time=Math.ceil(time);
+	public void setTime(double newtime) {
+		if(Test2.debugMode) {		
+			System.out.println("setting new rotation time of vehicle to be "+ newtime);
 		}
-		this.time = time;
+		if(Math.abs(newtime-Math.round(newtime))<0.0001) { //round to prevent repeated rotation error 13.999999999999
+			newtime=Math.ceil(newtime);
+		}
+		this.time = newtime;
 	}
 	@Override
 	public int compareTo(Event o) {

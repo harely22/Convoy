@@ -9,46 +9,41 @@ import java.util.Random;
 //and how close it is to perfect efficiency (ex-post proportionality)
 //It is built on top of project "Convoy" which was made for the repeated game scenario - so some things are redundant
 //Test2 is the main file that contains all of the definitions and runs the simulation
-// 
+//It prints the statistics to the console, specifically the Gini scores for the single game mechanism and the repeated game mechanism 
 
 public class Test2 {
-	/*
-	 * public static int numStations=100; 
-	 * public static int numVehicles=100;
-	 * 
-	 * public static int maxNumberOfCycles=100; Determines the maximal number of cycles, but the experiments will run for all the nmbers of cycles for 0 to that number in increments of cycle step
-	 * public static int testsPerCycle=10; Determines how many tests to run and average for every cycle step
-	 * 
-	 * public static int cycleStep=100; Determines the increment of number of cycles in each test iteration up to maxNumberOfCycles
-	 */
 
 	public static int numStations=100;
 	public static int numVehicles=10;
 	public static int NumberOfTrials=100;
-	private static boolean uniformDistribution=false;//used to determine start and end stations
-	public static boolean dynamicAdjustmentOfTTR=true;//used to dynamically adjust time to rotation of vehicles that have not finished leading, with every new entry
+	private static boolean uniformDistribution=false;//used to sample start and end stations
+	public static boolean dynamicAdjustmentOfTTR=false;//used to dynamically adjust time to rotation of vehicles that have not finished leading, with every new entry
 
-	public static List<Event> eventList;
-	public static double[][] AvailabilityPeriod=new double[NumberOfTrials][numVehicles];
-	public static double[][] EAPS=new double[NumberOfTrials][numVehicles];
-	public static double[][] EPPS=new double[NumberOfTrials][numVehicles];
-	public static double[][] SGActualShare=new double[NumberOfTrials][numVehicles];//Single game
-	public static double[][] RGActualShare=new double[NumberOfTrials][numVehicles];//Repeated game
-	public static double[] SGtoEPPS=new double[NumberOfTrials*numVehicles];//for gini index
-	public static double[] RGtoEPPS=new double[NumberOfTrials*numVehicles];//for gini index
+	public static boolean limitHighwayLengthForUniform=false;//used to limit the destination station to the number of entrance stations
+	public static boolean smoothBiModalDistribution=true;//used to add entry stations outside of the bi-modal distribution
 
 
-	public static boolean debugMode=true;
+	public static List<Event> eventList; //holds entry, exit and rotation events
+	public static double[][] AvailabilityPeriod=new double[NumberOfTrials][numVehicles]; 
+	public static double[][] EAPS=new double[NumberOfTrials][numVehicles];//Ex-ante proportional share
+	public static double[][] EPPS=new double[NumberOfTrials][numVehicles];//Ex-post proportional share
+	public static double[][] SGActualShare=new double[NumberOfTrials][numVehicles];//Single game mechanism outcome
+	public static double[][] RGActualShare=new double[NumberOfTrials][numVehicles];//Repeated game mechanism outcome
+	public static double[] SGtoEPPS=new double[NumberOfTrials*numVehicles];//raio of SG outcome to EPPS - used to calculate Gini index
+	public static double[] RGtoEPPS=new double[NumberOfTrials*numVehicles];//raio of RG outcome to EPPS - used to calculate Gini index
 
-	//	public static double participationThreshold=0.9;
-	public static double participationProbability=0.1;
-	public static double TotalAccumulatedProportionalShare;
-	public static double TotalAccumulatedActualShare;
+
+	public static boolean debugMode=false;//set this to false to mute debug messages
+
+	//	public static double participationThreshold=0.9; //deprecated
+	public static double participationProbability=0.1;//deprecated
+	public static double TotalAccumulatedProportionalShare;//deprecated
+	public static double TotalAccumulatedActualShare;//deprecated
 	public static Station[] stations;
 	public static Vehicle[] vehicles;
-	public static Convoy convoy;
-	Road r=new Road();
-//	public static Random rand=new Random(73);//this instance had the rounding error
+	public static Convoy convoy; // processes events and runs the mechanisms
+	Road r=new Road();//deprecated
+	//	public static Random rand=new Random(73);//this instance had the rounding error
 
 	public static Random rand;
 
@@ -57,7 +52,7 @@ public class Test2 {
 		for (int t=0;t<NumberOfTrials;t++) {
 			rand=new Random(t);//this is the setup for testing
 
-			if(debugMode) {			System.out.println("Trial number "+t);}
+			if(debugMode) {	System.out.println("Trial number "+t);}
 			if(convoy!=null) {
 				convoy.vehicles=null;
 				convoy.RGVehicles=null;
@@ -74,7 +69,7 @@ public class Test2 {
 			generateVehicles();
 			Collections.sort(eventList);
 			runConvoy(t);
-			if(debugMode) {	printStats();}
+			if(debugMode) {printStats();}
 		}
 		printFinalStats1();
 		calculateGiniIndex();
@@ -87,9 +82,10 @@ public class Test2 {
 
 
 		for(int i=0; i<eventList.size();i++) {
-			if(debugMode) {		printEventList();
-			printStats();
-			convoy.printConvoy();
+			if(debugMode) {
+				printEventList();
+				printStats();
+				convoy.printConvoy();
 			}
 
 			currentEvent=eventList.get(i);
@@ -124,10 +120,10 @@ public class Test2 {
 
 				if(debugMode) {	System.out.print("Adding new Vehicle and Updating leaders as needed. ");}
 				boolean insertedAsLeader;
-				
-				
-				//If dynamicly adjusting TTR then entering vehicles must enter after the ones that finished leading otherwise there is a situation where a rotated vehicle again finds itself being the leader
-				//this happens when new entrants with farther destinations arrive, enter from the back and push the ones that fininshed to the front while at the same time reducing the TTR of the leader
+
+
+				//If dynamically adjusting TTR then entering vehicles must enter after the ones that finished leading otherwise there is a situation where a rotated vehicle again finds itself being the leader
+				//this happens when new entrants with farther destinations arrive, enter from the back and push the ones that finished to the front while at the same time reducing the TTR of the leader
 				if(dynamicAdjustmentOfTTR) {
 					insertedAsLeader=convoy.insertSortedByDepartureAfterRotatedVehicles(currentEvent);
 				}
@@ -285,7 +281,7 @@ public class Test2 {
 					}
 
 					//5. delete rotation event from event list 
-		//			deleteRotationEvent(rotatingVehicle,currentEvent);
+					//			deleteRotationEvent(rotatingVehicle,currentEvent);
 
 				}
 				else {
@@ -324,13 +320,36 @@ public class Test2 {
 			int end=0;
 			if(uniformDistribution) {
 				start=(int)(rand.nextDouble()*numStations);
-				end=start +1+(int)(rand.nextDouble()*numStations);
+				if(limitHighwayLengthForUniform) {
+					end=start +1+(int)(rand.nextDouble()*(numStations-start));
+					if(debugMode) {System.out.println("end station= "+end);}
+
+				}
+				else {
+					end=start +1+(int)(rand.nextDouble()*numStations);
+				}
 			}
 
-			else{//bi polar distribution
-				double percent=10;
-				start=(int)(rand.nextDouble()*(double)(numStations)*percent/100);
-				end=(int)((double)(numStations)*(1-percent/100)+(int)(rand.nextDouble()*(double)(numStations)*percent/100));
+			else{//bi modal distribution
+				if(smoothBiModalDistribution) {
+					double percent=10;
+					if(rand.nextDouble()<0.2) {
+						start=(int)(rand.nextDouble()*numStations);
+						end=start +1+(int)(rand.nextDouble()*numStations);
+
+						//	start=10+(int)(rand.nextDouble()*(double)(numStations)*80/100);
+					}
+					else {
+						start=(int)(rand.nextDouble()*(double)(numStations)*percent/100);
+
+						end=(int)((double)(numStations)*(1-percent/100)+(int)(rand.nextDouble()*(double)(numStations)*percent/100));
+					}
+				}
+				else{//strict bi modal
+					double percent=10;
+					start=(int)(rand.nextDouble()*(double)(numStations)*percent/100);
+					end=(int)((double)(numStations)*(1-percent/100)+(int)(rand.nextDouble()*(double)(numStations)*percent/100));
+				}
 			}
 
 			Event startTime=new Event(1,i,start);
@@ -358,6 +377,21 @@ public class Test2 {
 				}
 				eventList.remove(i);
 				if(debugMode) {System.out.println("Deleting Event "+vehicleToRemoveRotation);	}
+				break;
+			}
+		}
+	}
+
+	public static void editRotationEvent(Event newRotation) {
+		Event EventToEdit;
+		for(int i=0; i<eventList.size();i++) {
+			EventToEdit=eventList.get(i);
+			if(debugMode) {		System.out.println("editing rotation Event for vehicle ="+newRotation.getVID()+" curent time="+EventToEdit.getTime());
+			}
+			if(EventToEdit.getType()==3&&EventToEdit.getVID()==newRotation.getVID()) {//rotate
+				if(debugMode) {		System.out.println("editing rotation Event for vehicle ="+newRotation.getVID()+" new time="+newRotation.getTime());
+				}
+				EventToEdit.setTime(newRotation.getTime());
 				break;
 			}
 		}
@@ -423,9 +457,12 @@ public class Test2 {
 		System.out.println("NumberOfTrials="+NumberOfTrials);
 		System.out.println("numVehicles="+numVehicles);
 		System.out.println("numStations="+numStations);
-		
+
 		System.out.println("dynamicAdjustmentOfTTR="+Test2.dynamicAdjustmentOfTTR);
 		System.out.println("uniformDistribution="+Test2.uniformDistribution);
+		System.out.println("limitHighwayLengthForUniform="+Test2.limitHighwayLengthForUniform);
+
+
 		double[][] SGtoEPPSdifferences= new double[NumberOfTrials*numVehicles][NumberOfTrials*numVehicles];
 		double[][] RGtoEPPSdifferences= new double[NumberOfTrials*numVehicles][NumberOfTrials*numVehicles];
 
@@ -459,7 +496,7 @@ public class Test2 {
 				//		System.out.println("("+i+","+j+") RGtoEPPS[i]="+RGtoEPPS[i]+" RGtoEPPS[j]="+RGtoEPPS[j]);
 			}	
 			//		System.out.print(SGtoEPPS[i]+" ,");
-//			System.out.print(RGtoEPPS[i]+" ,");
+			//			System.out.print(RGtoEPPS[i]+" ,");
 
 
 			sumSGtoEPPSRatio+=SGtoEPPS[i];

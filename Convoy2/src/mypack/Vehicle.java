@@ -83,39 +83,6 @@ public class Vehicle implements Comparable<Vehicle> {
 		else
 			return -1;
 	}
-	//	public void calculateShares(int convoySize) { //for repeated game - calculates at ever station 
-	//		accumulatedProportionalShare+=((double)1.0/convoySize);
-	//		currentConvoy.proportional+=((double)1.0/convoySize);
-	//		if(isLeader) {
-	//			accumulatedActualEPPS+=1.0;
-	//			currentConvoy.actual+=1.0;
-	//
-	//		}
-	//		System.out.println("Vehicle "+ getIndex()+" leader=" + isLeader+" is calculating shares for convoy size "+ convoySize+" adding to prop"+ ((double)1.0/convoySize)+" ratio="+((double)accumulatedActualEPPS/accumulatedProportionalShare));
-	//		
-	//	}
-	//	public void calculateExAntePropShare(Convoy convoy) {//for single game - calculates once for entire availability period
-
-	//		for (Vehicle v: (ArrayList<Vehicle>) convoy.vehicles) {
-	//			if(v.index!=index) {
-	//				sort by leave times 
-	// for each leave time add the fraction of available vehicles
-	//				
-	//			}
-	//		}
-	//		exAnteProportionalShare=((double)1.0/convoySize);
-	//			accumulatedProportionalShare+=((double)1.0/convoySize);
-	//			currentConvoy.proportional+=((double)1.0/convoySize);
-	//			if(isLeader) {
-	//				accumulatedActualShare+=1.0;
-	//				currentConvoy.actual+=1.0;
-	//
-	//			}
-	//			System.out.println("Vehicle "+ getIndex()+" leader=" + isLeader+" is calculating shares for convoy size "+ convoySize+" adding to prop"+ ((double)1.0/convoySize)+" ratio="+((double)accumulatedActualShare/accumulatedProportionalShare));
-	//
-	//
-	//		}
-	
 	
 	public double getremainingTimeToRotation() {
 		if(remainingTimeToRotation<0.00001) {

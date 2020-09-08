@@ -205,7 +205,7 @@ public class Convoy {
 		Vehicle existingVehicle;
 
 		//go over every segment in newVehicle's availability period  starting from [newVehicle's arrival, first leave] until newVehicle's leave
-		for( int i= 0;i<=sortedVehicles.indexOf(newVehicle);i++) { //ascending
+		for( int i= 0;i<=sortedVehicles.indexOf(newVehicle);i++) { //ascending 
 			existingVehicle=sortedVehicles.get(i);
 			seg_end=existingVehicle.destinationStation;
 			seg_size = (seg_end-seg_start);
@@ -225,8 +225,9 @@ public class Convoy {
 			newVehicle.setExAnteProportionalShare(newVehicle.getExAnteProportionalShare()+propShareForSegnment);
 
 			//in order to dynamically adjust the remainingTTD of the vehicles in the segment which have yet to finish their share, we need to find how many are there and adjust their ttr accordingly
-			int numberOfVehiclesThatFinishedLeading= getNumVehiclesWithZeroRemainingTTR(existingVehicle);
-
+			int numberOfVehiclesThatFinishedLeading= getNumVehiclesWithZeroRemainingTTR(seg_start, existingVehicle);
+			if(Test2.debugMode) {System.out.println("numberOfVehiclesThatFinishedLeading " +numberOfVehiclesThatFinishedLeading);
+			}
 			//this is the adjustment value that each splitter (vehicles that still need to lead) will get
 			int numberOfSplitters=n_seg-1-numberOfVehiclesThatFinishedLeading;
 			if(numberOfSplitters>0) {
@@ -247,23 +248,28 @@ public class Convoy {
 						toAdjust.setremainingTimeToRotation(Math.max(toAdjust.getremainingTimeToRotation()-adjustment,0));
 						if(Test2.debugMode) {		
 							System.out.println("Dynamically adjusting TTR of vehicle"+toAdjust.getIndex()+" to be "+ toAdjust.getremainingTimeToRotation()+ " following Vehicle "+newVehicle.getIndex()+ " entrance, n_seg="+n_seg+" numberOfVehiclesThatFinishedLeading="+numberOfVehiclesThatFinishedLeading);//ex ante proportional share
-						}
-						if(Test2.debugMode) {		
+							
 							System.out.println("The rotation event of vehicle"+toAdjust.getIndex()+" is "+ toAdjust.getRotation());
 						}
 						
 						//adjust the rotation time of the leader
-//						if(toAdjust.isLeader()) {
-//							double newRotationTime=toAdjust.getRotation().getTime()-adjustment;
-//							if(newRotationTime<currentEvent.getTime()) {
-//								newRotationTime=currentEvent.getTime();
-//							}
+						if(toAdjust.isLeader()) {
+
+							double newRotationTime=toAdjust.getRotation().getTime()-adjustment;
+							if(newRotationTime<currentEvent.getTime()) {
+								newRotationTime=currentEvent.getTime();
+							}
+							if(Test2.debugMode) {		
+								System.out.println("new rotation event time of vehicle"+toAdjust.getIndex()+" is "+ newRotationTime);
+							}
 //							toAdjust.getRotation().setTime(newRotationTime);
-//							
+//						
+//							Event leaderNewRotation=new Event(3,toAdjust.getIndex(),newRotationTime);
+//							Test2.editRotationEvent(leaderNewRotation);
 //							if(Test2.debugMode) {		
 //								System.out.println("Dynamically adjusting rotation event time of vehicle"+toAdjust.getIndex()+" to be "+ toAdjust.getRotation().getTime());//ex ante proportional share
 //							}
-//						}
+						}
 						
 					}
 				}
@@ -274,21 +280,23 @@ public class Convoy {
 			//reduce number of vehicles in segment before continuing to next segment
 			n_seg--;
 		}
-		if(Test2.debugMode) {System.out.println("Vehicle "+newVehicle.getIndex() +" EAPS share= "+newVehicle.getExAnteProportionalShare());
+		if(Test2.debugMode) {System.out.println("Vehicle "+newVehicle.getIndex() +" EAPS share= "+newVehicle.getExAnteProportionalShare()+" cuurent time="+currentEvent.getTime() +"time to rotation="+timeToRotation);
 		}
 
 		//Create rotation event for newVehicle in case it is the leader 
 		Event rotation=new Event(3,newVehicle.getIndex(),currentEvent.getTime()+timeToRotation);
+		if(Test2.debugMode) {System.out.println("returning rotation event "+ rotation);
+		}
 		return rotation;
 
 	}
 
 
-	private int getNumVehiclesWithZeroRemainingTTR(Vehicle existingVehicle) { // to calculate adjustment to TTR 
-		//returns the number of vehicles that have not finished leading until existingVehicle's departure
+	private int getNumVehiclesWithZeroRemainingTTR(double segmentStartTime, Vehicle existingVehicle) { // to calculate adjustment to TTR 
+		//returns the number of vehicles that have finished leading until existingVehicle's departure
 		int counter=0;
 		for( Vehicle v : vehicles) { 
-			if(v.getremainingTimeToRotation()==0) {
+			if(v.destinationStation>segmentStartTime&&   v.getremainingTimeToRotation()==0) {
 				counter++;
 			}
 			if(existingVehicle==v) {
